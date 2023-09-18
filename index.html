@@ -1,0 +1,313 @@
+<!-- 
+
+  Macarena Zappe
+
+ -->
+
+<!DOCTYPE html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="">
+    <title>Area Chart d3.js</title>
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter&family=Rubik&family=VT323&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="containerTitle" href="#">
+        <div class="subcontainer">
+            <h3 class="title"> Same-sex legal unions in the City of Buenos Aires</h3>
+            <div class="subtitle"> From 2003 to 2022 </div>
+        </div>
+    </div>
+
+    <svg width="1600" height="600"></svg>
+
+
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+
+
+
+    <style>
+        .line,
+        .uc-line {
+            display: none;
+        }
+    </style>
+
+    <script>
+
+        var svg = d3.select("svg"),
+            margin = { top: 20, right: 0, bottom: 30, left: 50 },
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom,
+            g = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var parseTime = d3.timeParse("%Y");
+
+        var x = d3.scaleTime()
+            .rangeRound([0, width - 150]);
+
+        var y = d3.scaleLinear()
+            .rangeRound([height, +10]);
+
+        var ucY = d3.scaleLinear()
+            .rangeRound([height, 0]);
+
+        var line = d3.line()
+            .x(function (d) { return x(d.year); })
+            .y(function (d) { return y(d.value); })
+            .curve(d3.curveCatmullRom.alpha(0.5));
+
+        var ucLine = d3.line()
+            .x(function (d) { return x(d.year); })
+            .y(function (d) { return ucY(d.uc); })
+            .curve(d3.curveNatural);
+
+
+        var currentIndex = 0; // Keeps track of the current year's index in your data
+
+        d3.csv("data/data.csv", function (d) {
+            d.year = parseTime(d.year);
+            d.value = +d.value;
+            d.uc = +d.uc;
+            return d;
+        }, function (error, data) {
+            if (error) throw error;
+
+            // Store the data in a variable for easy access
+            chartData = data;
+
+            x.domain(d3.extent(data, function (d) { return d.year; }));
+            y.domain([0, d3.max(data, function (d) { return d.value; })]);
+            ucY.domain([0, d3.max(data, function (d) { return d.value; })]);
+
+            // Line chart
+            g.append("path")
+                .attr("class", "line")
+                .attr("fill", "none")
+                .attr("stroke", "#000000")
+                .attr("stroke-width", "0.5px")
+                .attr("d", line(data))
+
+
+
+            // UC Line chart
+            g.append("path")
+                .attr("class", "uc-line")
+                .attr("fill", "none")
+                .attr("stroke", "#000000")
+                .attr("stroke-width", "1px")
+                .attr("stroke-dasharray", "5,5")
+                .attr("d", ucLine(data))
+
+
+            // X axis
+            g.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .attr("class", "x-axis")
+                .call(d3.axisBottom(x));
+
+
+
+            var imageElements = [];
+
+
+            function updateValueLabel() {
+                // Remove the previous "Value" label
+                g.selectAll(".value-label").remove();
+                g.selectAll(".value-image").remove();
+                // Define the initial year and the number of years to display
+                var initialYear = parseTime("2010");
+                var yearsToDisplay = currentIndex + 1; // Increase the number of years displayed with each scroll
+                var newData = chartData.slice(0, yearsToDisplay);
+                // Add the "Value" label for the last year shown
+
+
+                if (
+                    newData.length > 0 &&
+                    newData[newData.length - 1].value !== 0 &&
+                    !isNaN(newData[newData.length - 1].value)
+                ) {
+                    // Add the "Value" label for the last year shown
+                    g.append("text")
+                        .attr("class", "value-label")
+                        .attr("x", x(newData[newData.length - 1].year) + 35) // Adjust the x-position as needed
+                        .attr("y", y(newData[newData.length - 1].value)) // Use the last data point for the y-position
+                        .text(`Marriages: ${newData[newData.length - 1].value.toLocaleString()}`)
+                        .attr("fill", "#3E3E3E")
+                        .attr("font-size", "14px");
+
+
+                    g.append("text")
+                        .attr("class", "value-label")
+                        .attr("x", x(newData[newData.length - 1].year) + 10) // Adjust the x-position as needed
+                        .attr("y", y(newData[newData.length - 1].uc)) // Use the last data point for the y-position
+                        .text(`Civil unions: ${newData[newData.length - 1].uc.toLocaleString()}`)
+                        .attr("fill", "#3E3E3E")
+                        .attr("font-size", "14px");
+
+                    // Add image elements for each year in newData
+                    newData.forEach(function (d) {
+                        if (d.value !== 0) {
+                            var imageX = x(d.year) - 50; // Adjust the x-position as needed
+                            var imageY = y(d.value) - 10; // Adjust the y-position to position the image above the text
+                            var image = g.append("image")
+                                .attr("class", "value-image")
+                                .attr("x", imageX)
+                                .attr("y", imageY)
+                                .attr("width", 100)
+                                .attr("height", 30)
+                                .attr("xlink:href", "public/ring.png");
+
+                            // Push the image element to the array
+                            imageElements.push(image);
+                        }
+                    });
+                } else {
+                    g.append("text")
+                        .attr("class", "value-label")
+                        .attr("x", x(newData[newData.length - 1].year) + 10) // Adjust the x-position as needed
+                        .attr("y", y(newData[newData.length - 1].uc)) // Use the last data point for the y-position
+                        .text(`Civil unions: ${newData[newData.length - 1].uc.toLocaleString()}`)
+                        .attr("fill", "#3E3E3E")
+                        .attr("font-size", "14px");
+                }
+
+            }
+
+
+            // Function to update the chart data and year
+            function updateChart() {
+                // Increment the currentIndex to show the next year's data
+                currentIndex++;
+                if (currentIndex >= chartData.length) {
+                    currentIndex = chartData.length - 1;
+                }
+                d3.selectAll(".uc-line")
+                    .style("display", "block");
+
+
+                // Define the initial year and the number of years to display
+                var initialYear = parseTime("2010");
+                var yearsToDisplay = currentIndex + 1; // Increase the number of years displayed with each scroll
+
+
+
+                // Update the data for both the area and line charts
+
+                var newData = chartData.slice(0, yearsToDisplay);
+                x.domain(d3.extent(data, function (d) { return d.year; }));
+                y.domain([0, d3.max(data, function (d) { return d.value; })]);
+                ucY.domain([0, d3.max(data, function (d) { return d.value; })]);
+                // Update the area and line chart paths
+
+                if (
+        newData.length > 0 &&
+        newData[newData.length - 1].value !== 0 &&
+        !isNaN(newData[newData.length - 1].value)
+    ) { 
+        
+                    g.select(".line")
+                        .style("display", "block")
+                        .datum(newData)
+                        .attr("d", line)
+
+                    if (newData[newData.length - 1].value !== 0) {
+                        g.select(".value-image")
+                            .style("display", "block");
+                    } else {
+                        g.select(".value-image")
+                            .style("display", "none");
+                    }
+
+
+
+                } else {
+                    // If the condition is not met, hide the area and line
+                    g.select(".area").style("display", "none");
+                    g.select(".line").style("display", "none");
+                }
+
+
+
+                // UC Line chart
+                g.select(".uc-line")
+                    .datum(newData)
+                    .attr("d", ucLine);
+
+
+                updateValueLabel();
+
+            }
+
+            function backChart() {
+                // Increment the currentIndex to show the next year's data
+                currentIndex--;
+                if (currentIndex < 0) {
+                    currentIndex = 0;
+                }
+
+                d3.selectAll(".line,.uc-line")
+                    .style("display", "block");
+
+                // Update the data for both the area and line charts
+
+                var newData = chartData.slice(0, currentIndex);
+                /*             x.domain([d3.min(newData, function(d) { return d.year; }),d3.max(newData, function(d) { return d.year; }) ] ); */
+                x.domain(d3.extent(data, function (d) { return d.year; }));
+                y.domain([0, d3.max(data, function (d) { return d.value; })]);
+                ucY.domain([0, d3.max(data, function (d) { return d.value; })]);
+
+                // Update the area and line chart paths
+                g.select(".line")
+                    .datum(newData)
+                    .attr("d", line);
+
+                // UC Line chart
+                g.select(".uc-line")
+                    .datum(newData)
+                    .attr("d", ucLine);
+
+                g.selectAll(".value-image").remove();
+
+
+                updateValueLabel();
+            }
+
+            // Add scroll event listener to the document
+            document.addEventListener("wheel", function (event) {
+                if (event.deltaY > 0) {
+                    // Scroll down, advance one year
+                    updateChart();
+                } else if (event.deltaY < 0 && currentIndex > 0) {
+                    backChart();
+                }
+            });
+
+            document.addEventListener("DOMMouseScroll", function (event) {
+                if (event.detail > 0) {
+                    // Scroll down, advance one year
+                    updateChart();
+                } else if (event.deltaY < 0 && currentIndex > 0) {
+                    backChart();
+                }
+
+            });
+        });
+
+    </script>
+
+    <div class="containerScrolling" href="#">
+        <div class="textScrolling"> Scroll your mouse</div>
+        <img id="scrollingIcon" src="public/scroll.png">
+    </div>
+
+</body>
